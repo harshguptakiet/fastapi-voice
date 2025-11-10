@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -14,8 +14,5 @@ class UserOut(UserBase):
     """Schema used when returning user data"""
     id: int
     created_at: datetime
-
-    class Config:
-        orm_mode = True
-
-    
+    # Pydantic v2: enable ORM mode
+    model_config = ConfigDict(from_attributes=True)
