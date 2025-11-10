@@ -4,6 +4,7 @@ from datetime import datetime
 class UserBase(BaseModel):
     name: str
     email: EmailStr
+    profile_picture: str 
 
 class UserCreate(UserBase):
     """Schema used when creating a new user"""
@@ -16,3 +17,5 @@ class UserOut(UserBase):
 
     class Config:
         orm_mode = True
+
+    
