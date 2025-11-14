@@ -21,7 +21,11 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user = User(name=payload.name, email=payload.email)
+    user = User(
+        name=payload.name,
+        email=payload.email,
+        profile_picture=payload.profile_picture,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
