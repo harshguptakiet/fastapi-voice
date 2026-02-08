@@ -1,8 +1,14 @@
-from typing import Awaitable, Callable, Any
+from __future__ import annotations
+
+from typing import Any, Callable
+
 from app.providers.llm_provider import LLMProvider
+from app.providers.offline_provider import OfflineProvider
+from app.providers.openai_provider import OpenAIProvider
+
 
 class DummyProvider(LLMProvider):
-    """Temporary placeholder until a real API is selected"""
+    """Simple local provider for testing."""
 
     async def generate(self, prompt: str) -> str:
         return f"Dummy response for: {prompt}"
@@ -15,10 +21,19 @@ class DummyProvider(LLMProvider):
 
 
 class ModelSelector:
+    def select(self, provider: str, model: str | None = None) -> LLMProvider:
+        """Return an LLMProvider by provider name."""
 
-    def select(self, model: str) -> LLMProvider:
-        # Only dummy for now
-        return DummyProvider()
+        key = (provider or "dummy").strip().lower()
+
+        if key in {"dummy", "test"}:
+            return DummyProvider()
+        if key in {"openai"}:
+            return OpenAIProvider(model=model)
+        if key in {"offline", "local"}:
+            return OfflineProvider()
+
+        raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 model_selector = ModelSelector()

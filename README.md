@@ -94,9 +94,9 @@ Usage:
 1. Start the FastAPI server.
 2. Open `voice-test.html` in a browser (double-click or serve it statically).
 3. Click **Connect** to open the WebSocket.
-4. Click **Send session.update** once to configure the Realtime session.
+4. Click **Init session** once to configure the Realtime session.
 5. Use:
-	- Text input → **Send text** for text-to-voice.
+	- Text input → **Send text → voice** for text-to-voice.
 	- **Start recording / Stop / Replay / Send recording** for voice-to-voice.
 
 The page talks to:

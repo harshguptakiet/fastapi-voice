@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bot Backend API Tester</title>
+  <style>
+    :root { --bg:#0b0f17; --panel:#121a2a; --muted:#93a4c7; --fg:#e7eefc; --line:#24324d; --btn:#2b61ff; --btn2:#2a3758; }
+    html,body { height:100%; background:var(--bg); color:var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    .wrap { max-width: 1480px; margin: 16px auto; padding: 0 16px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom: 12px; }
+    .row label { font-size: 12px; color: var(--muted); }
+    input, textarea, select {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--fg);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      max-width: 100%;
+    }
+    input { width: min(520px, 100%); }
+    textarea { width: 100%; min-height: 110px; max-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .layout {
+      display:grid;
+      grid-template-columns: minmax(520px, 1fr) minmax(420px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .output {
+      position: sticky;
+      top: 14px;
+      height: calc(100vh - 140px);
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+    .output pre { flex: 1; max-height: none; }
+
+    /* Stack panels earlier for narrower laptops/tablets */
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 1fr; }
+      .output { position: static; height: auto; min-height: auto; }
+      .output pre { max-height: 420px; }
+    }
+
+    /* Single-column cards on small screens */
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      input { width: 100%; }
+      textarea { max-height: 220px; }
+    }
+
+    /* Improve touch targets on mobile */
+    @media (pointer: coarse) {
+      button { padding: 11px 14px; }
+      select, input { padding: 12px 12px; }
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(18,26,42,.9), rgba(18,26,42,.65));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .card h2 { font-size: 14px; margin: 0 0 10px; color: #cfe0ff; }
+    .btnbar { display:flex; gap:10px; flex-wrap:wrap; }
+    button {
+      background: var(--btn);
+      border: 0;
+      color: white;
+      padding: 9px 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.secondary { background: var(--btn2); color: var(--fg); border: 1px solid var(--line); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 8px; }
+    pre {
+      background: #0a0f1a;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      max-height: 380px;
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pill { display:inline-block; padding: 3px 8px; border-radius: 999px; background: rgba(147,164,199,.12); border: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    code { color: #cfe0ff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bot Backend API Tester <span class="pill">FastAPI</span></h1>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="row">
+        <div>
+          <label for="baseUrl">Base URL</label><br/>
+          <input id="baseUrl" placeholder="http://127.0.0.1:8000" value="http://127.0.0.1:8000"/>
+        </div>
+        <div>
+          <label for="sessionId">Session ID</label><br/>
+          <input id="sessionId" placeholder="(auto from /sessions)"/>
+        </div>
+        <div class="btnbar" style="align-self:flex-end;">
+          <button class="secondary" id="btnClear">Clear output</button>
+          <button class="secondary" id="btnCopyLastCurl">Copy last curl</button>
+        </div>
+      </div>
+      <div class="hint">
+        Open this page at <code>/static/api-tester.html</code> while the API is running.
+        It will call endpoints using the Base URL.
+      </div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="grid">
+          <div class="card">
+            <h2>System</h2>
+            <div class="btnbar">
+              <button onclick="callApi('GET','/health')">GET /health</button>
+              <button onclick="callApi('GET','/status')">GET /status</button>
+              <button onclick="callApi('GET','/metrics')">GET /metrics</button>
+            </div>
+            <div class="hint">Service + dependency status.</div>
+          </div>
+
+          <div class="card">
+            <h2>LLM</h2>
+            <div class="btnbar">
+              <button onclick="callApi('GET','/llm/health')">GET /llm/health</button>
+              <button onclick="callApi('GET','/llm/models')">GET /llm/models</button>
+              <button onclick="callJson('POST','/llm/generate', getJson('llmGenerate'))">POST /llm/generate</button>
+              <button class="secondary" onclick="streamSse('/llm/stream', getJson('llmStream'))">SSE /llm/stream</button>
+            </div>
+            <label class="hint" for="llmGenerate">Body for /llm/generate</label>
+            <textarea id="llmGenerate">{"prompt":"ping"}</textarea>
+
+            <label class="hint" for="llmStream">Body for /llm/stream</label>
+            <textarea id="llmStream">{"prompt":"stream ping"}</textarea>
+          </div>
+
+          <div class="card">
+            <h2>Sessions</h2>
+            <div class="btnbar">
+              <button onclick="createSession()">POST /sessions</button>
+              <button onclick="listMessages()">GET /sessions/{id}/messages</button>
+              <button onclick="addMessage()">POST /sessions/{id}/messages</button>
+              <button class="secondary" onclick="deleteSession()">DELETE /sessions/{id}</button>
+            </div>
+
+            <div class="split" style="margin-top:10px;">
+              <div>
+                <label class="hint" for="msgRole">role</label>
+                <select id="msgRole">
+                  <option value="user" selected>user</option>
+                  <option value="assistant">assistant</option>
+                  <option value="system">system</option>
+                </select>
+              </div>
+              <div>
+                <label class="hint" for="msgContent">content</label>
+                <input id="msgContent" value="hello" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Interactions</h2>
+            <div class="btnbar">
+              <button onclick="callJson('POST','/interactions', getJson('interactionsBody'))">POST /interactions</button>
+            </div>
+            <label class="hint" for="interactionsBody">Body</label>
+            <textarea id="interactionsBody">{"session_id":"s1","text":" hello ","language":"en-US"}</textarea>
+            <div class="hint">Checks normalization (trimmed text, input_type).</div>
+          </div>
+
+          <div class="card">
+            <h2>Voice Gateway</h2>
+            <div class="btnbar">
+              <button onclick="callApi('GET','/voice/health')">GET /voice/health</button>
+              <button onclick="callApi('GET','/voice/voices')">GET /voice/voices</button>
+              <button onclick="callJson('POST','/voice/synthesize', getJson('voiceSynthesize'))">POST /voice/synthesize</button>
+              <button class="secondary" onclick="callJson('POST','/voice/transcribe', getJson('voiceTranscribe'))">POST /voice/transcribe</button>
+            </div>
+
+            <label class="hint" for="voiceSynthesize">Body for /voice/synthesize</label>
+            <textarea id="voiceSynthesize">{"text":"hello"}</textarea>
+
+            <label class="hint" for="voiceTranscribe">Body for /voice/transcribe (audio_b64 required)</label>
+            <textarea id="voiceTranscribe">{"audio":{"audio_b64":"","sample_rate_hz":16000},"language":"en-US"}</textarea>
+            <div class="hint">Fill <code>audio_b64</code> with base64 PCM16 mono; otherwise validation will fail.</div>
+          </div>
+
+          <div class="card">
+            <h2>Transcripts</h2>
+            <div class="btnbar">
+              <button onclick="callJson('POST','/transcripts/normalize', getJson('normalizeBody'))">POST /transcripts/normalize</button>
+            </div>
+            <label class="hint" for="normalizeBody">Body (TranscriptNormalizeRequest)</label>
+            <textarea id="normalizeBody">{"provider":"microsoft","request_id":"r1","language":"en-US","raw":{"DisplayText":" hello "}}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card output">
+        <h2>Output</h2>
+        <pre id="out"></pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const out = document.getElementById('out');
+  const baseUrlEl = document.getElementById('baseUrl');
+  const sessionIdEl = document.getElementById('sessionId');
+  let lastCurl = '';
+
+  function baseUrl() {
+    const v = (baseUrlEl.value || '').trim();
+    return v.replace(/\/+$/, '');
+  }
+
+  function now() { return new Date().toISOString(); }
+
+  function log(line) {
+    out.textContent += line + "\n";
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function getJson(id) {
+    const raw = document.getElementById(id).value;
+    try { return JSON.parse(raw); }
+    catch (e) { throw new Error(`Invalid JSON in ${id}: ${e.message}`); }
+  }
+
+  function mkUrl(path) {
+    const b = baseUrl();
+    return b ? (b + path) : path;
+  }
+
+  function mkCurl(method, path, body) {
+    const url = mkUrl(path);
+    const parts = [`curl -i -X ${method} "${url}"`];
+    if (body !== undefined) {
+      parts.push(`-H "Content-Type: application/json"`);
+      parts.push(`-d '${JSON.stringify(body).replace(/'/g, "'\\''")}'`);
+    }
+    return parts.join(' ');
+  }
+
+  async function callApi(method, path) {
+    await callJson(method, path, undefined);
+  }
+
+  async function callJson(method, path, body) {
+    const url = mkUrl(path);
+    lastCurl = mkCurl(method, path, body);
+
+    log(`\n[${now()}] ${method} ${path}`);
+    if (body !== undefined) log(`Request: ${JSON.stringify(body, null, 2)}`);
+
+    const opts = { method, headers: {} };
+    if (body !== undefined) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+
+    try {
+      const res = await fetch(url, opts);
+      const ct = res.headers.get('content-type') || '';
+      const text = await res.text();
+
+      log(`Status: ${res.status}`);
+      if (ct.includes('application/json')) {
+        try { log(`Response(JSON): ${JSON.stringify(JSON.parse(text), null, 2)}`); }
+        catch { log(`Response: ${text}`); }
+      } else {
+        log(`Response: ${text}`);
+      }
+    } catch (e) {
+      log(`ERROR: ${e.message || e}`);
+      log(`curl: ${lastCurl}`);
+    }
+  }
+
+  async function createSession() {
+    const url = mkUrl('/sessions');
+    lastCurl = mkCurl('POST', '/sessions', {});
+    log(`\n[${now()}] POST /sessions (capture session_id)`);
+
+    try {
+      const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
+      const data = await res.json().catch(() => ({}));
+      log(`Status: ${res.status}`);
+      log(`Response(JSON): ${JSON.stringify(data, null, 2)}`);
+      if (data && data.session_id) sessionIdEl.value = data.session_id;
+    } catch (e) {
+      log(`ERROR: ${e.message || e}`);
+      log(`curl: ${lastCurl}`);
+    }
+  }
+
+  async function listMessages() {
+    const sid = (sessionIdEl.value || '').trim();
+    if (!sid) return log('ERROR: Session ID is required.');
+    await callApi('GET', `/sessions/${encodeURIComponent(sid)}/messages`);
+  }
+
+  async function addMessage() {
+    const sid = (sessionIdEl.value || '').trim();
+    if (!sid) return log('ERROR: Session ID is required.');
+    const role = document.getElementById('msgRole').value;
+    const content = document.getElementById('msgContent').value;
+    await callJson('POST', `/sessions/${encodeURIComponent(sid)}/messages`, { role, content });
+  }
+
+  async function deleteSession() {
+    const sid = (sessionIdEl.value || '').trim();
+    if (!sid) return log('ERROR: Session ID is required.');
+    await callApi('DELETE', `/sessions/${encodeURIComponent(sid)}`);
+  }
+
+  async function streamSse(path, body) {
+    const url = mkUrl(path);
+    lastCurl = mkCurl('POST', path, body);
+    log(`\n[${now()}] SSE POST ${path}`);
+    log(`Request: ${JSON.stringify(body, null, 2)}`);
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        body: JSON.stringify(body),
+      });
+
+      log(`Status: ${res.status}`);
+      if (!res.ok || !res.body) {
+        const t = await res.text().catch(()=> '');
+        log(`Response: ${t}`);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buf = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const lines = buf.split(/\r?\n/);
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (line.trim().length) log(`SSE: ${line}`);
+        }
+      }
+
+      log('SSE: (closed)');
+    } catch (e) {
+      log(`ERROR: ${e.message || e}`);
+      log(`curl: ${lastCurl}`);
+    }
+  }
+
+  document.getElementById('btnClear').addEventListener('click', () => { out.textContent=''; });
+  document.getElementById('btnCopyLastCurl').addEventListener('click', async () => {
+    if (!lastCurl) return;
+    try {
+      await navigator.clipboard.writeText(lastCurl);
+      log(`Copied curl: ${lastCurl}`);
+    } catch {
+      log(`curl: ${lastCurl}`);
+    }
+  });
+</script>
+</body>
+</html>

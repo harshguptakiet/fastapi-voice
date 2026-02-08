@@ -1,51 +1,61 @@
 import asyncio
 import base64
 import io
+import uuid
 import wave
 
-import httpx
 import websockets
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
 from websockets.exceptions import ConnectionClosed
 
 from app.core import config
-from app.dependencies import get_llm_provider
-from app.providers.llm_provider import LLMProvider
-from app.providers.microsoft_voice_live_provider import MicrosoftVoiceLiveProvider
+from app.dependencies import get_speech_provider
+from app.providers.microsoft_voice_live_provider import MicrosoftVoiceLiveError
+from app.providers.disabled_speech_provider import DisabledSpeechProvider
+from app.providers.speech_provider import SpeechProvider
+from app.schemas.voice import (
+    NormalizedTranscript,
+    SynthesizeRequest,
+    SynthesizeResponse,
+    TranscribeAudioRequest,
+    VoiceInfo,
+)
 
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
 
-class TranscribeRequest(BaseModel):
-    # Base64-encoded PCM16 mono audio; optional sample rate in Hz
-    audio: str
-    sample_rate: int | None = None
-
-
 @router.get("/health")
-async def voice_health(provider: LLMProvider = Depends(get_llm_provider)) -> dict[str, str]:
-    if not isinstance(provider, MicrosoftVoiceLiveProvider):
+async def voice_health(provider: SpeechProvider = Depends(get_speech_provider)) -> dict[str, str]:
+    if isinstance(provider, DisabledSpeechProvider):
         return {"status": "disabled"}
 
-    ok = await provider._simple_health_check()  # type: ignore[attr-defined]
+    try:
+        ok = await provider.health_check()
+    except Exception:
+        return {"status": "unhealthy"}
+
     return {"status": "ok" if ok else "unhealthy"}
 
 
-@router.post("/transcribe")
-async def transcribe_audio(body: TranscribeRequest) -> dict[str, str]:
-    stt_base = config.MICROSOFT_VOICE_LIVE_STT_URL
-    api_key = config.MICROSOFT_VOICE_LIVE_API_KEY
-    if not stt_base or not api_key:
-        raise HTTPException(status_code=500, detail="STT not configured")
+@router.post("/transcribe", response_model=NormalizedTranscript)
+async def transcribe_audio(
+    body: TranscribeAudioRequest,
+    provider: SpeechProvider = Depends(get_speech_provider),
+) -> NormalizedTranscript:
+    if isinstance(provider, DisabledSpeechProvider):
+        return await provider.transcribe_wav(
+            wav_bytes=b"",
+            sample_rate_hz=body.audio.sample_rate_hz,
+            language=body.language,
+            request_id=body.request_id,
+        )
 
-    try:
-        raw_pcm = base64.b64decode(body.audio)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid audio payload")
+    raw_pcm = base64.b64decode(body.audio.audio_b64)
 
-    sample_rate = body.sample_rate or 24000
+    sample_rate = body.audio.sample_rate_hz
+    request_id = body.request_id or str(uuid.uuid4())
+    language = body.language
 
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
@@ -54,77 +64,124 @@ async def transcribe_audio(body: TranscribeRequest) -> dict[str, str]:
         wf.setframerate(sample_rate)
         wf.writeframes(raw_pcm)
 
-    stt_base = stt_base.rstrip("/")
-    url = f"{stt_base}/speech/recognition/conversation/cognitiveservices/v1?language=en-US&format=detailed"
-    headers = {
-        "Accept": "application/json",
-        "Ocp-Apim-Subscription-Key": api_key,
-        "Content-Type": f"audio/wav; codecs=audio/pcm; samplerate={sample_rate}",
-    }
-
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(url, headers=headers, content=buf.getvalue())
-
-    if resp.status_code >= 400:
-        raise HTTPException(status_code=502, detail="STT request failed")
-
     try:
-        data = resp.json()
-    except Exception:
-        raise HTTPException(status_code=502, detail="Invalid STT response")
-
-    text = (
-        data.get("DisplayText")
-        or data.get("displayText")
-        or data.get("Text")
-        or data.get("text")
-    )
-
-    if (not isinstance(text, str) or not text.strip()) and isinstance(
-        data.get("NBest"), list
-    ) and data["NBest"]:
-        first = data["NBest"][0] or {}
-        text = (
-            first.get("Display")
-            or first.get("display")
-            or first.get("Lexical")
-            or first.get("lexical")
-            or text
+        return await provider.transcribe_wav(
+            wav_bytes=buf.getvalue(),
+            sample_rate_hz=sample_rate,
+            language=language,
+            request_id=request_id,
         )
-    if not isinstance(text, str):
-        return {"text": ""}
+    except MicrosoftVoiceLiveError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="STT request failed") from exc
 
-    if not text.strip():
-        return {"text": ""}
 
-    return {"text": text.strip()}
+@router.get("/voices", response_model=list[VoiceInfo])
+async def list_voices(
+    provider: SpeechProvider = Depends(get_speech_provider),
+) -> list[VoiceInfo]:
+    try:
+        voices = await provider.list_voices()
+    except NotImplementedError:
+        return []
+    except Exception:
+        return []
+
+    out: list[VoiceInfo] = []
+    for v in voices:
+        if isinstance(v, dict) and v.get("name"):
+            out.append(VoiceInfo(**v))
+    return out
+
+
+@router.post("/synthesize", response_model=SynthesizeResponse)
+async def synthesize(
+    body: SynthesizeRequest,
+    provider: SpeechProvider = Depends(get_speech_provider),
+) -> SynthesizeResponse:
+    rid = body.request_id or str(uuid.uuid4())
+    try:
+        audio_bytes, mime, voice_used, final_rid = await provider.synthesize_text(
+            text=body.text,
+            language=body.language,
+            voice=body.voice,
+            request_id=rid,
+            output_format=body.output_format,
+        )
+    except MicrosoftVoiceLiveError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="TTS request failed") from exc
+
+    return SynthesizeResponse(
+        request_id=final_rid,
+        provider=getattr(provider, "name", provider.__class__.__name__),
+        voice=voice_used,
+        mime_type=mime,
+        audio_b64=base64.b64encode(audio_bytes).decode("ascii"),
+        raw=None if not isinstance(provider, DisabledSpeechProvider) else {"status": "disabled"},
+    )
 
 
 @router.websocket("/stream")
 async def voice_stream(
     websocket: WebSocket,
-    provider: LLMProvider = Depends(get_llm_provider),
+    provider: SpeechProvider = Depends(get_speech_provider),
 ) -> None:
+    """Websocket bridge to the upstream realtime voice service.
+
+    Disabled by default unless ENABLE_VOICE_STREAM_WS=true.
+    """
+
     await websocket.accept()
 
-    if not isinstance(provider, MicrosoftVoiceLiveProvider):
+    if not config.ENABLE_VOICE_STREAM_WS:
         await websocket.close(code=1013)
         return
 
-    base_url = config.MICROSOFT_VOICE_LIVE_BASE_URL
+    # Streaming requires a provider that exposes a realtime websocket endpoint.
+    if isinstance(provider, DisabledSpeechProvider):
+        await websocket.close(code=1013)
+        return
+
+    if not hasattr(provider, "build_realtime_ws_url"):
+        await websocket.close(code=1013)
+        return
+
     api_key = config.MICROSOFT_VOICE_LIVE_API_KEY
-    if not base_url or not api_key:
+    if not api_key:
         await websocket.close(code=1011)
         return
 
-    host = base_url.replace("https://", "").replace("http://", "").rstrip("/")
-    ws_url = (
-        f"wss://{host}/voice-live/realtime?api-version=2025-10-01"
-        f"&model=gpt-4.1&api-key={api_key}"
-    )
+    model = config.MICROSOFT_VOICE_LIVE_REALTIME_MODEL
+
+    # Prefer header auth; allow query auth only when enabled.
+    ws_url = provider.build_realtime_ws_url(model=model)  # type: ignore[attr-defined]
+    ws_url_with_query_key = f"{ws_url}&api-key={api_key}"
 
     try:
-        async with websockets.connect(ws_url, max_size=None, subprotocols=["realtime"]) as ms_ws:
+        # Attempt header-based auth first; fall back to query-string auth for compatibility.
+        try:
+            connect_ctx = websockets.connect(
+                ws_url,
+                max_size=None,
+                subprotocols=["realtime"],
+                extra_headers={"api-key": api_key},
+            )
+            ms_ws_cm = connect_ctx
+            if config.MICROSOFT_VOICE_LIVE_AUTH_IN_QUERY:
+                raise RuntimeError("Forced query auth")
+        except Exception:
+            ms_ws_cm = websockets.connect(
+                ws_url_with_query_key,
+                max_size=None,
+                subprotocols=["realtime"],
+            )
+
+        async with ms_ws_cm as ms_ws:
 
             async def client_to_ms() -> None:
                 while True:
