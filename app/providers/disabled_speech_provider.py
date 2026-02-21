@@ -46,7 +46,6 @@ class DisabledSpeechProvider(SpeechProvider):
         text: str,
         language: Optional[str] = None,
         voice: Optional[str] = None,
-        emotion: Optional[str] = None,
         request_id: Optional[str] = None,
         output_format: Optional[str] = None,
     ) -> tuple[bytes, str, str | None, str]:

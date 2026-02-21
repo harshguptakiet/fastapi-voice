@@ -8,7 +8,6 @@ from app.providers.disabled_speech_provider import DisabledSpeechProvider
 from app.providers.llm_provider import LLMProvider
 from app.providers.speech_provider import SpeechProvider
 from app.schemas.status import DependencyStatus, SystemStatusResponse
-from app.services.object_storage_service import object_storage
 
 
 router = APIRouter(prefix="/status", tags=["status"])
@@ -48,17 +47,3 @@ async def system_status(
         database=db_status,
         tags=["gateway", "fastapi"],
     )
-
-
-@router.get("/storage")
-async def storage_status() -> dict[str, str | bool | None]:
-    provider = object_storage.provider
-    using_s3 = provider == "s3"
-    bucket = object_storage._s3_bucket if using_s3 else None
-
-    return {
-        "provider": provider,
-        "using_s3": using_s3,
-        "bucket": bucket,
-        "local_dir": str(object_storage.base_dir),
-    }

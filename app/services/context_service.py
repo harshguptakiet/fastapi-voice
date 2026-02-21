@@ -1,154 +1,61 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
-
-from app.core.database import Base, engine
-from app.core.database import SessionLocal
-from app.models.conversation_message import ConversationMessage
-from app.models.conversation_session import ConversationSession
 
 
 class ContextService:
+
     def __init__(self) -> None:
-        Base.metadata.create_all(
-            bind=engine,
-            tables=[
-                ConversationSession.__table__,
-                ConversationMessage.__table__,
-            ],
-        )
+        self.sessions: dict[str, dict[str, Any]] = {}
 
     def exists(self, session_id: str) -> bool:
-        with SessionLocal() as db:
-            return (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-                is not None
-            )
+        return session_id in self.sessions
 
     def get(self, session_id: str) -> dict[str, Any] | None:
-        with SessionLocal() as db:
-            sess = (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-            )
-            if not sess:
-                return None
-            return {
-                "current_topic": sess.current_topic,
-                "language": sess.language,
-                "persona": sess.persona,
-                "last_response": sess.last_response,
-            }
+        return self.sessions.get(session_id)
 
     def set(self, session_id: str, data: dict[str, Any]) -> None:
-        with SessionLocal() as db:
-            sess = (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-            )
-            if not sess:
-                sess = ConversationSession(
-                    session_id=session_id,
-                    current_topic=data.get("current_topic"),
-                    language=data.get("language") or "en",
-                    persona=data.get("persona") or "default",
-                    last_response=data.get("last_response"),
-                )
-                db.add(sess)
-            else:
-                if "current_topic" in data:
-                    sess.current_topic = data.get("current_topic")
-                if "language" in data:
-                    sess.language = data.get("language") or "en"
-                if "persona" in data:
-                    sess.persona = data.get("persona") or "default"
-                if "last_response" in data:
-                    sess.last_response = data.get("last_response")
-            db.commit()
+        # Ensure session container always exists.
+        existing = self.sessions.get(session_id) or {}
+        existing.update(data)
+        existing.setdefault("messages", [])
+        existing.setdefault("current_topic", None)
+        existing.setdefault("language", "en")
+        existing.setdefault("persona", "default")
+        existing.setdefault("last_response", None)
+        self.sessions[session_id] = existing
 
     def update_state(self, session_id: str, key: str, value: Any) -> bool:
-        with SessionLocal() as db:
-            sess = (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-            )
-            if not sess:
-                return False
-
-            if key == "current_topic":
-                sess.current_topic = value
-            elif key == "language":
-                sess.language = value or "en"
-            elif key == "persona":
-                sess.persona = value or "default"
-            elif key == "last_response":
-                sess.last_response = value
-            else:
-                return False
-
-            db.commit()
-            return True
+        sess = self.sessions.get(session_id)
+        if not sess:
+            return False
+        sess[key] = value
+        return True
 
     def reset(self, session_id: str) -> None:
-        with SessionLocal() as db:
-            db.query(ConversationMessage).filter(
-                ConversationMessage.session_id == session_id
-            ).delete()
-            db.query(ConversationSession).filter(
-                ConversationSession.session_id == session_id
-            ).delete()
-            db.commit()
+        self.sessions.pop(session_id, None)
 
     def get_messages(self, session_id: str):
-        with SessionLocal() as db:
-            sess = (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-            )
-            if not sess:
-                return None
-
-            rows = (
-                db.query(ConversationMessage)
-                .filter(ConversationMessage.session_id == session_id)
-                .order_by(ConversationMessage.id.asc())
-                .all()
-            )
-
-            return [
-                {
-                    "role": row.role,
-                    "content": row.content,
-                    "timestamp": row.timestamp,
-                }
-                for row in rows
-            ]
+        sess = self.sessions.get(session_id)
+        if not sess:
+            return None
+        return list(sess.get("messages") or [])
 
     def add_message(self, session_id: str, *, role: str, content: str) -> bool:
-        with SessionLocal() as db:
-            sess = (
-                db.query(ConversationSession)
-                .filter(ConversationSession.session_id == session_id)
-                .first()
-            )
-            if not sess:
-                return False
+        sess = self.sessions.get(session_id)
+        if not sess:
+            return False
 
-            db.add(
-                ConversationMessage(
-                    session_id=session_id,
-                    role=role,
-                    content=content,
-                )
-            )
-            db.commit()
-            return True
+        messages = sess.setdefault("messages", [])
+        messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.utcnow(),
+            }
+        )
+        return True
 
 
 context = ContextService()

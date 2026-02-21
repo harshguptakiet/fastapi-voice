@@ -79,7 +79,6 @@ class SynthesizeRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Text to synthesize")
     language: str | None = Field(None, description="Optional language hint")
     voice: str | None = Field(None, description="Optional voice name")
-    emotion: str | None = Field(None, description="Optional emotion hint for expressive TTS")
     request_id: str | None = Field(None, description="Client-supplied request id")
     output_format: str | None = Field(
         None,

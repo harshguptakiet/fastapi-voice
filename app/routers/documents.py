@@ -24,5 +24,12 @@ async def upload_document(file: UploadFile = File(...)):
 
 @router.get("/list")
 async def list_documents():
-    docs = document_service.list_documents()
+    # Simple list of processed documents
+    from pathlib import Path
+    
+    docs = []
+    text_dir = Path("storage/documents/text")
+    if text_dir.exists():
+        for f in text_dir.glob("*.txt"):
+            docs.append(f.stem)
     return {"documents": docs}
