@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Voice AI Experience App</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --bg-soft: #0f172a;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel-strong: rgba(15, 23, 42, 0.9);
+      --line: rgba(148, 163, 184, 0.22);
+      --line-strong: rgba(148, 163, 184, 0.35);
+      --text: #e6edf7;
+      --muted: #9aa9c2;
+      --accent: #4f46e5;
+      --accent-2: #0ea5e9;
+      --accent-3: #22d3ee;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --shadow: 0 14px 38px rgba(2, 6, 23, 0.42);
+      --radius-xl: 18px;
+      --radius-md: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1200px 640px at 8% -12%, rgba(79, 70, 229, 0.28) 0%, rgba(79, 70, 229, 0) 60%),
+        radial-gradient(1100px 600px at 105% 8%, rgba(14, 165, 233, 0.24) 0%, rgba(14, 165, 233, 0) 58%),
+        linear-gradient(160deg, var(--bg) 0%, var(--bg-soft) 100%);
+      color: var(--text);
+      font: 14px/1.45 Inter, Segoe UI, system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      letter-spacing: .01em;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(7,11,20,.92), rgba(7,11,20,.62));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #f8fbff;
+      letter-spacing: .02em;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent-3), var(--accent));
+      box-shadow: 0 0 16px rgba(34, 211, 238, 0.65);
+    }
+    .topbar-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .top-pill {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--line-strong);
+      background: rgba(15, 23, 42, 0.82);
+      border-radius: 999px;
+      padding: 4px 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      font-weight: 700;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 280px 1fr 360px;
+      gap: 14px;
+      padding: 14px;
+      height: calc(100vh - 62px);
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-strong));
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 14px;
+      min-height: 0;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .side, .right {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: auto;
+    }
+    .side::-webkit-scrollbar,
+    .right::-webkit-scrollbar,
+    .chat::-webkit-scrollbar,
+    .logs::-webkit-scrollbar { width: 10px; height: 10px; }
+    .side::-webkit-scrollbar-thumb,
+    .right::-webkit-scrollbar-thumb,
+    .chat::-webkit-scrollbar-thumb,
+    .logs::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.28);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f3f7ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; font-weight: 600; }
+    .status-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .badge {
+      border: 1px solid var(--line-strong);
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 999px;
+      padding: 4px 11px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .ok { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.82);
+      color: var(--text);
+      padding: 10px 11px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(79, 70, 229, 0.7);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+      background: rgba(15, 23, 42, 0.94);
+    }
+    input::placeholder, textarea::placeholder { color: #7f8da8; }
+    textarea { min-height: 74px; resize: vertical; font-family: ui-monospace, Consolas, monospace; }
+    button {
+      background: linear-gradient(135deg, var(--accent) 0%, #4338ca 55%, #3730a3 100%);
+      border: 0;
+      font-weight: 700;
+      cursor: pointer;
+      color: #f8fbff;
+      transition: transform .08s ease, filter .18s ease, box-shadow .18s ease;
+      box-shadow: 0 8px 18px rgba(67, 56, 202, 0.38);
+    }
+    button:hover { filter: brightness(1.06); }
+    button:active { transform: translateY(1px); }
+    button.secondary {
+      background: linear-gradient(135deg, #334155 0%, #1f2937 100%);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+    button.secondary:hover { filter: brightness(1.08); }
+    button.danger {
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+      box-shadow: 0 8px 18px rgba(185, 28, 28, 0.34);
+    }
+    button.danger:hover { filter: brightness(1.04); }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row > * { flex: 1; }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      min-height: 0;
+    }
+    .chat {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(8, 13, 26, 0.88), rgba(11, 18, 32, 0.96));
+      padding: 12px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+    .msg {
+      padding: 10px 12px;
+      border-radius: 12px;
+      max-width: 85%;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--line);
+      background: rgba(17, 24, 39, 0.85);
+      box-shadow: 0 6px 16px rgba(2, 6, 23, 0.22);
+    }
+    .user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #2563eb 0%, #3730a3 100%);
+      border-color: rgba(147, 197, 253, 0.28);
+      color: #f4f8ff;
+    }
+    .assistant { align-self: flex-start; border-color: rgba(34, 211, 238, 0.22); }
+    .system {
+      align-self: center;
+      background: rgba(31, 41, 55, 0.9);
+      color: var(--muted);
+      font-size: 12px;
+      border-style: dashed;
+    }
+    .composer { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+    .composer input { min-width: 0; }
+
+    .meter-wrap {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #0f172a;
+    }
+    .meter {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #0ea5e9, #6366f1);
+      transition: width .08s linear;
+    }
+    .logs {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(11, 18, 32, 0.9), rgba(7, 11, 20, 0.95));
+      padding: 10px;
+      height: 260px;
+      overflow: auto;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    audio {
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--line);
+      padding: 4px;
+    }
+    @media (max-width: 1280px) {
+      .app { grid-template-columns: 260px 1fr; }
+      .right { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="brand-dot"></span>Voice Platform QA Console</div>
+    <div class="topbar-meta">
+      <span class="top-pill">Realtime Validation</span>
+      <span class="top-pill">API + Voice + LLM</span>
+    </div>
+  </div>
+  <div class="app">
+    <div class="side">
+      <div class="panel">
+        <div class="title">Control Center</div>
+        <div class="sub">Production-style environment and runtime controls</div>
+      </div>
+
+      <div class="panel">
+        <label class="label" for="baseUrl">Base URL</label>
+        <input id="baseUrl" value="http://127.0.0.1:8000" />
+        <div style="height:8px"></div>
+        <label class="label" for="sessionId">Session ID</label>
+        <input id="sessionId" placeholder="click New Session" />
+        <div style="height:8px"></div>
+        <div class="btn-row">
+          <button onclick="newSession()">New Session</button>
+          <button class="secondary" onclick="checkHealth()">Check Health</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="label">Live Status</div>
+        <div class="status-row">
+          <span class="badge" id="sApi">API: ?</span>
+          <span class="badge" id="sLlm">LLM: ?</span>
+          <span class="badge" id="sVoice">Voice: ?</span>
+          <span class="badge" id="sStorage">Storage: ?</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <label class="label" for="llmProvider">LLM Provider</label>
+        <select id="llmProvider">
+          <option value="openai">openai</option>
+          <option value="gemini" selected>gemini</option>
+          <option value="anthropic">anthropic</option>
+        </select>
+        <div style="height:8px"></div>
+        <label class="label" for="llmModel">LLM Model (optional override)</label>
+        <input id="llmModel" placeholder="google/gemini-flash" />
+      </div>
+
+      <div class="panel">
+        <label class="label" for="voiceId">ElevenLabs Voice ID (optional override)</label>
+        <input id="voiceId" placeholder="voice id" />
+        <div style="height:8px"></div>
+        <label class="label" for="lang">Language</label>
+        <input id="lang" value="en-US" />
+      </div>
+    </div>
+
+    <div class="main panel">
+      <div>
+        <div class="title">Live Interaction Workspace</div>
+        <div class="sub">Text and voice validation across STT, orchestration, and TTS</div>
+      </div>
+
+      <div id="chat" class="chat"></div>
+
+      <div>
+        <div class="composer">
+          <input id="textInput" placeholder="Type a message..." />
+          <button onclick="sendTextFlow()">Send</button>
+          <button id="micBtn" class="secondary" onclick="toggleMic()">Start Mic</button>
+        </div>
+        <div style="height:8px"></div>
+        <div class="meter-wrap"><div id="meter" class="meter"></div></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="title">Endpoint Smoke Tests</div>
+        <div style="height:8px"></div>
+        <div class="btn-row"><button onclick="runInteractionRaw()">Test /interactions</button><button class="secondary" onclick="runLlmRaw()">Test /llm/generate</button></div>
+        <div style="height:8px"></div>
+        <div class="btn-row"><button onclick="runVoiceTranscribeRaw()">Test /voice/transcribe</button><button class="secondary" onclick="runVoiceSynthRaw()">Test /voice/synthesize</button></div>
+        <div style="height:8px"></div>
+        <button class="danger" onclick="clearChat()">Clear Chat</button>
+      </div>
+
+      <div class="panel">
+        <div class="title">Content Pipeline Checks</div>
+        <div class="sub">Upload documents and validate ingestion endpoints</div>
+        <div style="height:8px"></div>
+        <input id="docFile" type="file" accept=".pdf,.docx,.pptx" title="Upload PDF, DOCX, or PPTX file" />
+        <div style="height:8px"></div>
+        <div class="btn-row">
+          <button onclick="uploadDocument()">Upload Document</button>
+          <button class="secondary" onclick="listDocuments()">List Documents</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">Session Orchestration</div>
+        <div class="sub">Run interaction flow with memory/state verification</div>
+        <div style="height:8px"></div>
+        <label class="label" for="orchPrompt">Test Prompt</label>
+        <input id="orchPrompt" value="Summarize what I asked in one line." />
+        <div style="height:8px"></div>
+        <div class="btn-row">
+          <button onclick="runOrchestrationFlow()">Run Full Flow</button>
+          <button class="secondary" onclick="inspectSession()">Inspect Session</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">Audio Monitor</div>
+        <div style="height:8px"></div>
+        <audio id="player" controls style="width:100%"></audio>
+      </div>
+
+      <div class="panel" style="flex:1; min-height:0;">
+        <div class="title">Event Trace</div>
+        <div style="height:8px"></div>
+        <div id="logs" class="logs"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const chatEl = document.getElementById('chat');
+  const logsEl = document.getElementById('logs');
+  const meterEl = document.getElementById('meter');
+  const playerEl = document.getElementById('player');
+
+  let audioCtx = null;
+  let sourceNode = null;
+  let processorNode = null;
+  let micStream = null;
+  let micOn = false;
+  let chunkFrames = [];
+  let chunkTimer = null;
+  let ttsQueue = [];
+  let ttsPlaying = false;
+  let ttsObjectUrl = null;
+  let ttsAudioCtx = null;
+  let isAssistantSpeaking = false;
+  const TTS_PREROLL_MS = 140;
+
+  function baseUrl() { return (document.getElementById('baseUrl').value || '').trim().replace(/\/+$/, ''); }
+  function sid() { return (document.getElementById('sessionId').value || '').trim(); }
+  function log(msg) { logsEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; logsEl.scrollTop = logsEl.scrollHeight; }
+  function addMsg(text, role='system') {
+    const d = document.createElement('div');
+    d.className = `msg ${role}`;
+    d.textContent = text;
+    chatEl.appendChild(d);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+  function setBadge(id, text, kind) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.classList.remove('ok', 'warn', 'bad');
+    if (kind) el.classList.add(kind);
+  }
+
+  function showApiResult(title, r) {
+    const payload = r.json ?? r.text;
+    const rendered = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+    log(`${title} -> ${r.status}`);
+    log(rendered);
+    addMsg(`${title} (${r.status})\n${rendered}`, r.ok ? 'system' : 'system');
+  }
+
+  async function api(method, path, body, headers = {}) {
+    const url = baseUrl() + path;
+    const opts = { method, headers: { ...headers } };
+    if (body !== undefined && !(body instanceof FormData)) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    } else if (body instanceof FormData) {
+      opts.body = body;
+    }
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
+    return { ok: res.ok, status: res.status, text, json };
+  }
+
+  async function newSession() {
+    try {
+      const r = await api('POST', '/sessions', {});
+      if (!r.ok) throw new Error(`status ${r.status}`);
+      document.getElementById('sessionId').value = r.json.session_id;
+      addMsg(`Session created: ${r.json.session_id}`, 'system');
+      log(`Session created ${r.json.session_id}`);
+    } catch (e) {
+      log(`newSession failed: ${e.message || e}`);
+    }
+  }
+
+  async function checkHealth() {
+    try {
+      const h = await api('GET', '/health');
+      setBadge('sApi', `API: ${h.ok ? 'ok' : 'bad'}`, h.ok ? 'ok' : 'bad');
+
+      const llm = await api('GET', '/llm/health');
+      setBadge('sLlm', `LLM: ${llm.ok ? 'ok' : 'bad'}`, llm.ok ? 'ok' : 'bad');
+
+      const vh = await api('GET', '/voice/health');
+      const vs = vh.json?.status || (vh.ok ? 'ok' : 'bad');
+      const vk = vs === 'ok' ? 'ok' : (vs === 'disabled' ? 'warn' : 'bad');
+      setBadge('sVoice', `Voice: ${vs}`, vk);
+
+      const st = await api('GET', '/status/storage');
+      if (st.ok) {
+        const provider = st.json?.provider || 'unknown';
+        const sk = provider === 's3' ? 'ok' : (provider === 'local' ? 'warn' : 'bad');
+        setBadge('sStorage', `Storage: ${provider}`, sk);
+      } else {
+        setBadge('sStorage', 'Storage: bad', 'bad');
+      }
+
+      log('Health checked');
+    } catch (e) {
+      log(`checkHealth failed: ${e.message || e}`);
+    }
+  }
+
+  function getLlmBody(prompt) {
+    const body = { prompt };
+    const provider = document.getElementById('llmProvider').value;
+    const model = (document.getElementById('llmModel').value || '').trim();
+    if (provider) body.provider = provider;
+    if (model) body.llm_model = model;
+    return body;
+  }
+
+  function getInteractionBody(text) {
+    const body = { session_id: sid(), text, language: document.getElementById('lang').value || 'en-US' };
+    const provider = document.getElementById('llmProvider').value;
+    const model = (document.getElementById('llmModel').value || '').trim();
+    if (provider) body.provider = provider;
+    if (model) body.llm_model = model;
+    return body;
+  }
+
+  async function sendTextFlow() {
+    const text = (document.getElementById('textInput').value || '').trim();
+    if (!text) return;
+    if (!sid()) await newSession();
+
+    document.getElementById('textInput').value = '';
+    addMsg(text, 'user');
+
+    try {
+      const iBody = getInteractionBody(text);
+      const iRes = await api('POST', '/interactions', iBody);
+
+      let reply = iRes.json?.response_text;
+      const replyEmotion = iRes.json?.response_emotion || null;
+      if (!reply) {
+        const lRes = await api('POST', '/llm/generate', getLlmBody(text));
+        reply = lRes.json?.text || lRes.text;
+      }
+
+      if (reply) {
+        addMsg(reply, 'assistant');
+        await synthAndPlay(reply, replyEmotion);
+      }
+      log('Text flow complete');
+    } catch (e) {
+      addMsg(`Flow error: ${e.message || e}`, 'system');
+      log(`sendTextFlow failed: ${e.message || e}`);
+    }
+  }
+
+  function floatToPCM16(float32) {
+    const out = new Int16Array(float32.length);
+    for (let i = 0; i < float32.length; i++) {
+      let s = Math.max(-1, Math.min(1, float32[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return out;
+  }
+  function merge(frames) {
+    const total = frames.reduce((n, a) => n + a.length, 0);
+    const out = new Float32Array(total);
+    let off = 0;
+    for (const f of frames) { out.set(f, off); off += f.length; }
+    return out;
+  }
+  function wavBytesFromFloat32(float32, sampleRate = 16000) {
+    const pcm16 = floatToPCM16(float32);
+    const len = pcm16.length * 2;
+    const buf = new ArrayBuffer(44 + len);
+    const v = new DataView(buf);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+
+    ws(0, 'RIFF'); v.setUint32(4, 36 + len, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, len, true);
+    let off = 44;
+    for (let i = 0; i < pcm16.length; i++, off += 2) v.setInt16(off, pcm16[i], true);
+    return new Uint8Array(buf);
+  }
+  function u8ToB64(u8) {
+    let s = ''; const step = 0x8000;
+    for (let i = 0; i < u8.length; i += step) s += String.fromCharCode(...u8.subarray(i, i + step));
+    return btoa(s);
+  }
+
+  function b64ToBlob(b64, mime) {
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime || 'audio/mpeg' });
+  }
+
+  function b64ToArrayBuffer(b64) {
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  async function playWithWebAudio(audioB64) {
+    if (!ttsAudioCtx) {
+      ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (ttsAudioCtx.state === 'suspended') {
+      await ttsAudioCtx.resume();
+    }
+
+    const ab = b64ToArrayBuffer(audioB64);
+    const decoded = await ttsAudioCtx.decodeAudioData(ab.slice(0));
+    const preRollFrames = Math.max(1, Math.floor((decoded.sampleRate * TTS_PREROLL_MS) / 1000));
+    const merged = ttsAudioCtx.createBuffer(
+      decoded.numberOfChannels,
+      decoded.length + preRollFrames,
+      decoded.sampleRate
+    );
+
+    for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+      const target = merged.getChannelData(ch);
+      const source = decoded.getChannelData(ch);
+      target.set(source, preRollFrames);
+    }
+
+    await new Promise((resolve) => {
+      const src = ttsAudioCtx.createBufferSource();
+      src.buffer = merged;
+      src.connect(ttsAudioCtx.destination);
+      src.onended = () => resolve();
+      src.start(0);
+    });
+  }
+
+  async function playBufferedAudio(audioB64, mime) {
+    try {
+      await playWithWebAudio(audioB64);
+      return;
+    } catch (e) {
+      log(`WebAudio playback fallback: ${e?.message || e}`);
+    }
+
+    const blob = b64ToBlob(audioB64, mime);
+
+    if (ttsObjectUrl) {
+      try { URL.revokeObjectURL(ttsObjectUrl); } catch {}
+      ttsObjectUrl = null;
+    }
+
+    ttsObjectUrl = URL.createObjectURL(blob);
+
+    await new Promise((resolve, reject) => {
+      let started = false;
+
+      const cleanup = () => {
+        playerEl.removeEventListener('canplaythrough', onCanPlay);
+        playerEl.removeEventListener('ended', onEnded);
+        playerEl.removeEventListener('error', onErr);
+      };
+
+      const onEnded = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onErr = () => {
+        cleanup();
+        reject(new Error('audio playback failed'));
+      };
+
+      const onCanPlay = async () => {
+        if (started) return;
+        started = true;
+        try {
+          await playerEl.play();
+        } catch (e) {
+          cleanup();
+          reject(e);
+        }
+      };
+
+      playerEl.addEventListener('canplaythrough', onCanPlay, { once: true });
+      playerEl.addEventListener('ended', onEnded, { once: true });
+      playerEl.addEventListener('error', onErr, { once: true });
+
+      playerEl.preload = 'auto';
+      playerEl.pause();
+      playerEl.src = ttsObjectUrl;
+      playerEl.currentTime = 0;
+      playerEl.load();
+
+      setTimeout(() => {
+        if (!started) onCanPlay();
+      }, 500);
+    });
+  }
+
+  async function flushTtsQueue() {
+    if (ttsPlaying) return;
+    ttsPlaying = true;
+    isAssistantSpeaking = true;
+    try {
+      while (ttsQueue.length > 0) {
+        const item = ttsQueue.shift();
+        if (!item) continue;
+        await playBufferedAudio(item.audio_b64, item.mime);
+      }
+    } finally {
+      ttsPlaying = false;
+      isAssistantSpeaking = false;
+    }
+  }
+
+  async function transcribeChunk(float32) {
+    const wav = wavBytesFromFloat32(float32, 16000);
+    const body = { audio: { audio_b64: u8ToB64(wav), sample_rate_hz: 16000 }, language: document.getElementById('lang').value || 'en-US' };
+    const r = await api('POST', '/voice/transcribe', body);
+    if (!r.ok) {
+      log(`STT failed ${r.status}: ${r.text}`);
+      return '';
+    }
+    return (r.json?.text || '').trim();
+  }
+
+  async function synthAndPlay(text, emotion = null) {
+    const body = { text, language: document.getElementById('lang').value || 'en-US' };
+    const voiceId = (document.getElementById('voiceId').value || '').trim();
+    if (voiceId) body.voice = voiceId;
+    if (emotion) body.emotion = emotion;
+
+    const r = await api('POST', '/voice/synthesize', body);
+    if (!r.ok || !r.json?.audio_b64) {
+      log(`TTS failed ${r.status}: ${r.text}`);
+      return;
+    }
+    const mime = r.json.mime_type || 'audio/mpeg';
+    ttsQueue.push({ audio_b64: r.json.audio_b64, mime });
+    await flushTtsQueue();
+  }
+
+  async function toggleMic() {
+    if (!micOn) return startMic();
+    return stopMic();
+  }
+
+  async function startMic() {
+    if (micOn) return;
+    if (!sid()) await newSession();
+
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    sourceNode = audioCtx.createMediaStreamSource(micStream);
+    processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+
+    processorNode.onaudioprocess = (ev) => {
+      if (!micOn || isAssistantSpeaking) return;
+      const f = ev.inputBuffer.getChannelData(0);
+      chunkFrames.push(new Float32Array(f));
+      let peak = 0;
+      for (let i = 0; i < f.length; i++) peak = Math.max(peak, Math.abs(f[i]));
+      meterEl.style.width = `${Math.min(100, Math.round(peak * 220))}%`;
+    };
+
+    sourceNode.connect(processorNode);
+    processorNode.connect(audioCtx.destination);
+
+    micOn = true;
+    document.getElementById('micBtn').textContent = 'Stop Mic';
+    document.getElementById('micBtn').classList.remove('secondary');
+
+    chunkTimer = setInterval(async () => {
+      if (!micOn || isAssistantSpeaking || chunkFrames.length === 0) return;
+      const frames = chunkFrames; chunkFrames = [];
+      const merged = merge(frames);
+      if (merged.length < 4000) return;
+
+      const spoken = await transcribeChunk(merged);
+      if (!spoken) return;
+      addMsg(spoken, 'user');
+
+      const iBody = getInteractionBody(spoken);
+      const iRes = await api('POST', '/interactions', iBody);
+      const reply = iRes.json?.response_text;
+      const replyEmotion = iRes.json?.response_emotion || null;
+      if (reply) {
+        addMsg(reply, 'assistant');
+        await synthAndPlay(reply, replyEmotion);
+      }
+    }, 1200);
+
+    addMsg('Mic started', 'system');
+    log('Mic started');
+  }
+
+  async function stopMic() {
+    micOn = false;
+    if (chunkTimer) clearInterval(chunkTimer);
+    chunkTimer = null;
+
+    try { if (processorNode) processorNode.disconnect(); } catch {}
+    try { if (sourceNode) sourceNode.disconnect(); } catch {}
+    try { if (audioCtx) await audioCtx.close(); } catch {}
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+
+    audioCtx = null; sourceNode = null; processorNode = null; micStream = null;
+    meterEl.style.width = '0%';
+
+    document.getElementById('micBtn').textContent = 'Start Mic';
+    document.getElementById('micBtn').classList.add('secondary');
+    addMsg('Mic stopped', 'system');
+    log('Mic stopped');
+  }
+
+  async function runInteractionRaw() {
+    const body = getInteractionBody('quick interaction test');
+    if (!body.session_id) body.session_id = 's1';
+    const r = await api('POST', '/interactions', body);
+    log(`/interactions -> ${r.status}`);
+    if (r.json?.response_text) addMsg(r.json.response_text, 'assistant');
+  }
+
+  async function runLlmRaw() {
+    const r = await api('POST', '/llm/generate', getLlmBody('quick llm test'));
+    log(`/llm/generate -> ${r.status}`);
+    if (r.json?.text) addMsg(r.json.text, 'assistant');
+  }
+
+  async function runVoiceTranscribeRaw() {
+    const silence = new Float32Array(16000 * 0.5);
+    const t = await transcribeChunk(silence);
+    log(`/voice/transcribe -> ${t ? 'ok' : 'empty/failed'}`);
+  }
+
+  async function runVoiceSynthRaw() {
+    await synthAndPlay('Hello from realtime experience app');
+    log('/voice/synthesize called');
+  }
+
+  async function uploadDocument() {
+    const fileInput = document.getElementById('docFile');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      log('No file selected for upload');
+      return;
+    }
+    const form = new FormData();
+    form.append('file', file);
+    const r = await api('POST', '/documents/upload', form);
+    showApiResult('/documents/upload', r);
+  }
+
+  async function listDocuments() {
+    const r = await api('GET', '/documents/list');
+    showApiResult('/documents/list', r);
+  }
+
+  async function runOrchestrationFlow() {
+    try {
+      if (!sid()) await newSession();
+
+      const prompt = (document.getElementById('orchPrompt').value || '').trim() || 'test orchestration';
+      const body = getInteractionBody(prompt);
+      body.session_id = sid();
+
+      const interaction = await api('POST', '/interactions', body);
+      showApiResult('/interactions orchestration', interaction);
+      if (!interaction.ok) {
+        return;
+      }
+
+      const reply = interaction.json?.response_text || '(empty response)';
+      addMsg(prompt, 'user');
+      addMsg(reply, 'assistant');
+
+      const messages = await api('GET', `/sessions/${encodeURIComponent(sid())}/messages`);
+      showApiResult('/sessions/{id}/messages', messages);
+      if (messages.ok) {
+        const count = Array.isArray(messages.json?.messages) ? messages.json.messages.length : 0;
+        addMsg(`Orchestration memory check: ${count} messages in session`, 'system');
+      }
+    } catch (e) {
+      log(`runOrchestrationFlow failed: ${e.message || e}`);
+      addMsg(`Orchestration error: ${e.message || e}`, 'system');
+    }
+  }
+
+  async function inspectSession() {
+    if (!sid()) {
+      log('No session id for inspect');
+      return;
+    }
+    const state = await api('GET', `/sessions/${encodeURIComponent(sid())}`);
+    showApiResult('/sessions/{id}', state);
+  }
+
+  function clearChat() { chatEl.innerHTML = ''; addMsg('Chat cleared', 'system'); }
+
+  checkHealth();
+  addMsg('Ready. Create session and start chatting or mic.', 'system');
+</script>
+</body>
+</html>

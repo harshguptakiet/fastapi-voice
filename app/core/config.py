@@ -19,39 +19,40 @@ LLM_MODEL: str | None = (os.getenv("LLM_MODEL") or None)
 OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
+# Anthropic configuration
+ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_BASE_URL: str = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+ANTHROPIC_MODEL: str | None = os.getenv("ANTHROPIC_MODEL")
+
+# Gemini configuration
+GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL: str = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com")
+GEMINI_MODEL: str | None = os.getenv("GEMINI_MODEL")
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("Invalid database connection string")
 
-# Microsoft Voice Live configuration (optional)
-MICROSOFT_VOICE_LIVE_API_KEY: str | None = os.getenv("MICROSOFT_VOICE_LIVE_API_KEY")
-MICROSOFT_VOICE_LIVE_REGION: str | None = os.getenv("MICROSOFT_VOICE_LIVE_REGION")
-MICROSOFT_VOICE_LIVE_VOICE: str | None = os.getenv("MICROSOFT_VOICE_LIVE_VOICE")
-MICROSOFT_VOICE_LIVE_BASE_URL: str | None = os.getenv("MICROSOFT_VOICE_LIVE_BASE_URL")
+# Object storage configuration
+OBJECT_STORAGE_PROVIDER: str = os.getenv("OBJECT_STORAGE_PROVIDER", "local")
+OBJECT_STORAGE_BUCKET: str | None = os.getenv("OBJECT_STORAGE_BUCKET")
+OBJECT_STORAGE_REGION: str | None = os.getenv("OBJECT_STORAGE_REGION")
+OBJECT_STORAGE_ENDPOINT_URL: str | None = os.getenv("OBJECT_STORAGE_ENDPOINT_URL")
+OBJECT_STORAGE_ACCESS_KEY: str | None = os.getenv("OBJECT_STORAGE_ACCESS_KEY")
+OBJECT_STORAGE_SECRET_KEY: str | None = os.getenv("OBJECT_STORAGE_SECRET_KEY")
+LOCAL_DOCUMENT_STORAGE_DIR: str = os.getenv("LOCAL_DOCUMENT_STORAGE_DIR", "storage/documents")
 
-# Required only for /voice/stream when enabled.
-MICROSOFT_VOICE_LIVE_REALTIME_API_VERSION: str | None = os.getenv(
-    "MICROSOFT_VOICE_LIVE_REALTIME_API_VERSION"
-)
+# Deepgram (STT) + ElevenLabs (TTS) configuration.
+DEEPGRAM_API_KEY: str | None = os.getenv("DEEPGRAM_API_KEY")
+DEEPGRAM_STT_URL: str = os.getenv("DEEPGRAM_STT_URL", "https://api.deepgram.com/v1/listen")
+DEEPGRAM_MODEL: str = os.getenv("DEEPGRAM_MODEL", "nova-2")
+DEEPGRAM_LANGUAGE: str = os.getenv("DEEPGRAM_LANGUAGE", "en-US")
 
-MICROSOFT_VOICE_LIVE_REALTIME_MODEL: str = os.getenv(
-    "MICROSOFT_VOICE_LIVE_REALTIME_MODEL", "gpt-4.1"
-)
+ELEVENLABS_API_KEY: str | None = os.getenv("ELEVENLABS_API_KEY")
+ELEVENLABS_BASE_URL: str = os.getenv("ELEVENLABS_BASE_URL", "https://api.elevenlabs.io/v1")
+ELEVENLABS_VOICE_ID: str | None = os.getenv("ELEVENLABS_VOICE_ID")
+ELEVENLABS_MODEL_ID: str = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
 
-# Prefer header auth; enable query auth only if required.
-MICROSOFT_VOICE_LIVE_AUTH_IN_QUERY: bool = os.getenv(
-    "MICROSOFT_VOICE_LIVE_AUTH_IN_QUERY", "false"
-).lower() in {"1", "true", "yes"}
-
-# Voice websocket bridge toggle.
-ENABLE_VOICE_STREAM_WS: bool = os.getenv(
-    "ENABLE_VOICE_STREAM_WS", "false"
-).lower() in {"1", "true", "yes"}
-
-# Optional explicit STT/TTS endpoints. If not set, they can be derived from region.
-MICROSOFT_VOICE_LIVE_TTS_URL: str | None = os.getenv("MICROSOFT_VOICE_LIVE_TTS_URL")
-MICROSOFT_VOICE_LIVE_STT_URL: str | None = os.getenv("MICROSOFT_VOICE_LIVE_STT_URL")
-
-USE_MICROSOFT_VOICE_LIVE: bool = os.getenv(
-    "USE_MICROSOFT_VOICE_LIVE", "false"
+USE_DEEPGRAM_ELEVENLABS: bool = os.getenv(
+    "USE_DEEPGRAM_ELEVENLABS", "false"
 ).lower() in {"1", "true", "yes"}

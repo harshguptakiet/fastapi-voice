@@ -21,7 +21,6 @@ This file summarizes the FastAPI routes currently registered in `app/main.py`.
 - `POST /voice/transcribe` — speech-to-text (base64 audio payload) -> normalized transcript
 - `GET /voice/voices` — list available voices
 - `POST /voice/synthesize` — text-to-speech -> base64 audio response
-- `WS /voice/stream` — websocket bridge to realtime voice upstream (gated by config)
 
 ## Sessions (`/sessions`)
 

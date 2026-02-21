@@ -1,6 +1,6 @@
 ## Bot Backend – Quick Setup
 
-This project is a FastAPI backend with MySQL and Microsoft Voice Live (Azure Speech + Realtime) support.
+This project is a FastAPI backend with MySQL and Deepgram (STT) + ElevenLabs (TTS) support.
 
 ---
 
@@ -8,7 +8,8 @@ This project is a FastAPI backend with MySQL and Microsoft Voice Live (Azure Spe
 
 - Python 3.12 (recommended)
 - MySQL running locally (default: `mysql://root@localhost:3306/botdb`)
-- Azure Speech / Voice Live resource (key + region)
+- Deepgram API key
+- ElevenLabs API key + voice id
 
 ---
 
@@ -47,18 +48,21 @@ ENV=dev
 # Database
 DATABASE_URL=mysql+pymysql://root:@localhost:3306/botdb
 
-# Microsoft Voice Live / Azure Speech
-MICROSOFT_VOICE_LIVE_API_KEY="<your-azure-speech-key>"
-MICROSOFT_VOICE_LIVE_REGION="eastus"
-MICROSOFT_VOICE_LIVE_BASE_URL="https://<your-resource-name>.services.ai.azure.com"
-USE_MICROSOFT_VOICE_LIVE="true"
-MICROSOFT_VOICE_LIVE_VOICE="en-US-JennyNeural"
-MICROSOFT_VOICE_LIVE_LANGUAGE="en-US"
-MICROSOFT_VOICE_LIVE_TTS_URL="https://eastus.tts.speech.microsoft.com"
-MICROSOFT_VOICE_LIVE_STT_URL="https://eastus.stt.speech.microsoft.com"
+# Deepgram + ElevenLabs
+USE_DEEPGRAM_ELEVENLABS="true"
+
+DEEPGRAM_API_KEY="<your-deepgram-key>"
+DEEPGRAM_STT_URL="https://api.deepgram.com/v1/listen"
+DEEPGRAM_MODEL="nova-2"
+DEEPGRAM_LANGUAGE="en-US"
+
+ELEVENLABS_API_KEY="<your-elevenlabs-key>"
+ELEVENLABS_BASE_URL="https://api.elevenlabs.io/v1"
+ELEVENLABS_VOICE_ID="<your-voice-id>"
+ELEVENLABS_MODEL_ID="eleven_multilingual_v2"
 ```
 
-Make sure the key/region and base URL match your Azure Speech resource.
+Make sure the Deepgram and ElevenLabs credentials are valid.
 
 ---
 
@@ -94,14 +98,12 @@ Usage:
 1. Start the FastAPI server.
 2. Open `voice-test.html` in a browser (double-click or serve it statically).
 3. Click **Connect** to open the WebSocket.
-4. Click **Init session** once to configure the Realtime session.
 5. Use:
 	- Text input → **Send text → voice** for text-to-voice.
 	- **Start recording / Stop / Replay / Send recording** for voice-to-voice.
 
 The page talks to:
 
-- `ws://127.0.0.1:8000/voice/stream` for Realtime text+audio
 - `POST http://127.0.0.1:8000/voice/transcribe` for STT
 
 ---

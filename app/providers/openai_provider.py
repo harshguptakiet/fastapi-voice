@@ -27,10 +27,22 @@ class OpenAIProvider(LLMProvider):
     ) -> None:
         self.api_key = api_key or config.OPENAI_API_KEY
         self.base_url = (base_url or config.OPENAI_BASE_URL).rstrip("/")
-        self.model = model or config.LLM_MODEL or "gpt-4o-mini"
+        self.model = self._normalize_model(model or config.LLM_MODEL or "openai/gpt-4o-mini-std")
 
         if not self.api_key:
             raise OpenAIProviderError("OPENAI_API_KEY is not set")
+
+    def _normalize_model(self, model: str) -> str:
+        key = (model or "").strip().lower()
+        mapping = {
+            "openai/gpt-4o-mini-std": "gpt-4o-mini",
+            "openai/gpt-4.1": "gpt-4.1",
+        }
+        if key in mapping:
+            return mapping[key]
+        if key.startswith("openai/"):
+            return key.split("/", 1)[1]
+        return model
 
     async def generate(self, prompt: str) -> str:
         url = f"{self.base_url}/chat/completions"

@@ -16,7 +16,7 @@ async def main() -> None:
     # Set safe defaults for local smoke tests.
     os.environ.setdefault("DATABASE_URL", "sqlite:///./local_test.db")
     os.environ.setdefault("ENV", "dev")
-    os.environ.setdefault("USE_MICROSOFT_VOICE_LIVE", "false")
+    os.environ.setdefault("USE_DEEPGRAM_ELEVENLABS", "false")
     os.environ.setdefault("LLM_PROVIDER", "dummy")
 
     from app.main import app
@@ -87,7 +87,7 @@ async def main() -> None:
 
         norm = await client.post(
             "/transcripts/normalize",
-            json={"provider": "microsoft", "raw": {"DisplayText": " hello "}},
+            json={"provider": "deepgram", "raw": {"DisplayText": " hello "}},
         )
         assert norm.status_code == 200, norm.text
         assert norm.json()["transcript"]["text"] == "hello"

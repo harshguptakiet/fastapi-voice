@@ -13,3 +13,5 @@ class TextInteractionRequest(BaseModel):
     session_id: str = Field(..., min_length=1)
     text: str = Field(..., min_length=1, description="User-provided text input")
     language: str | None = Field(None, description="Optional BCP-47 language code")
+    provider: str | None = Field(None, description="Optional LLM provider override")
+    llm_model: str | None = Field(None, description="Optional LLM model override")

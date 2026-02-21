@@ -1,26 +1,20 @@
 import io
-import os
-import shutil
 from pathlib import Path
 
 from pypdf import PdfReader
 from docx import Document
 from pptx import Presentation
 
+from app.services.object_storage_service import object_storage
+
 class DocumentService:
     def __init__(self, storage_dir: str = "storage/documents"):
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.raw_dir = self.storage_dir / "raw"
-        self.text_dir = self.storage_dir / "text"
-        self.raw_dir.mkdir(exist_ok=True)
-        self.text_dir.mkdir(exist_ok=True)
 
     async def save_and_extract(self, file_name: str, content: bytes) -> dict:
         # 1. Save raw file
-        file_path = self.raw_dir / file_name
-        with open(file_path, "wb") as f:
-            f.write(content)
+        raw_uri = object_storage.save_raw(file_name, content)
 
         # 2. Extract text
         ext = Path(file_name).suffix.lower()
@@ -43,17 +37,17 @@ class DocumentService:
         # 3. Clean and save extracted text
         cleaned_text = self._clean_text(extracted_text)
         text_file_name = f"{Path(file_name).stem}.txt"
-        text_file_path = self.text_dir / text_file_name
-        
-        with open(text_file_path, "w", encoding="utf-8") as f:
-            f.write(cleaned_text)
+        text_uri = object_storage.save_text(text_file_name, cleaned_text)
 
         return {
             "file_name": file_name,
-            "raw_path": str(file_path),
-            "text_path": str(text_file_path),
+            "raw_path": raw_uri,
+            "text_path": text_uri,
             "content_preview": cleaned_text[:200] + "..." if len(cleaned_text) > 200 else cleaned_text
         }
+
+    def list_documents(self) -> list[str]:
+        return object_storage.list_text_documents()
 
     def _extract_pdf(self, content: bytes) -> str:
         reader = PdfReader(io.BytesIO(content))
