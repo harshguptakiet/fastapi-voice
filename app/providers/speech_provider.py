@@ -17,7 +17,7 @@ class SpeechProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Stable provider identifier (e.g. 'microsoft')."""
+        """Stable provider identifier (e.g. 'deepgram-elevenlabs')."""
 
     @abstractmethod
     async def health_check(self) -> bool:
@@ -48,6 +48,7 @@ class SpeechProvider(ABC):
         text: str,
         language: Optional[str] = None,
         voice: Optional[str] = None,
+        emotion: Optional[str] = None,
         request_id: Optional[str] = None,
         output_format: Optional[str] = None,
     ) -> tuple[bytes, str, str | None, str]:

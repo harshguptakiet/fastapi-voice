@@ -6,6 +6,7 @@ from typing import Any, AsyncIterator
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.core import config
 from app.dependencies import get_llm_provider
 from app.providers.llm_provider import LLMProvider
 from app.schemas.llm import (
@@ -29,28 +30,25 @@ async def llm_health(provider: LLMProvider = Depends(get_llm_provider)) -> LLMHe
 
 @router.get("/models", response_model=LLMModelsResponse)
 async def llm_models() -> LLMModelsResponse:
-    # Minimal: expose a static set depending on provider.
-    # This keeps the endpoint functional without upstream model listing.
+    # Expose supported providers/adapters.
     return LLMModelsResponse(
         provider="configured",
-        models=[
-            {"id": "dummy", "label": "Dummy (local test)"},
-            {"id": "openai", "label": "OpenAI-compatible"},
-        ],
+        models=model_selector.list_supported_providers(),
     )
 
 
 @router.post("/generate", response_model=LLMGenerateResponse)
 async def llm_generate(body: LLMGenerateRequest) -> LLMGenerateResponse:
     try:
-        provider_name = body.provider
+        provider_name = body.provider or config.LLM_PROVIDER
+        provider_id = model_selector.normalize_provider(provider_name)
         selected = model_selector.select(provider_name or "", body.llm_model)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     text = await selected.generate(body.prompt)
     return LLMGenerateResponse(
-        provider=(body.provider or "configured"),
+        provider=provider_id,
         model=body.llm_model,
         text=text,
         raw=None,
@@ -60,7 +58,8 @@ async def llm_generate(body: LLMGenerateRequest) -> LLMGenerateResponse:
 @router.post("/stream")
 async def llm_stream(body: LLMGenerateRequest) -> StreamingResponse:
     try:
-        selected = model_selector.select(body.provider or "", body.llm_model)
+        provider_name = body.provider or config.LLM_PROVIDER
+        selected = model_selector.select(provider_name, body.llm_model)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

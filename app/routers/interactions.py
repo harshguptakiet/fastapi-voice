@@ -24,11 +24,16 @@ async def create_interaction(body: TextInteractionRequest) -> dict:
     )
 
     # 2. Process with orchestrator
-    response_text = await orchestrator.process_interaction(interaction)
+    response_text = await orchestrator.process_interaction(
+        interaction,
+        provider=body.provider,
+        llm_model=body.llm_model,
+    )
 
     # 3. Return both the normalization and the response
     return {
         "interaction": interaction.model_dump(),
-        "response_text": response_text
+        "response_text": response_text,
+        "response_emotion": orchestrator.get_last_emotion(body.session_id),
     }
 
